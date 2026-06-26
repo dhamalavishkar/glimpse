@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "123456789012",
-    "project_id": "locket-clone-placeholder",
-    "storage_bucket": "locket-clone-placeholder.appspot.com"
+    "project_number": "481254844409",
+    "project_id": "glimpse-ae61c",
+    "storage_bucket": "glimpse-ae61c.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:481254844409:android:821fc1053f430246d8ff28",
         "android_client_info": {
           "package_name": "com.locketclone.locket_clone"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "PLACEHOLDER_API_KEY"
+          "current_key": "AIzaSyA1at58y_0bqfJChE4IZRPY_RKvegyeRPY"
         }
       ],
       "services": {

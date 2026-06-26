@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -35,7 +35,7 @@ jobs:
         run: flutter build apk --release
         
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: "build-${{ github.run_number }}"
           name: "Locket Clone - Build #${{ github.run_number }}"

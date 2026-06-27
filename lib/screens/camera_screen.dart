@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/liquid_glass.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -78,25 +82,45 @@ class _CameraScreenState extends State<CameraScreen> {
     if (_controller == null || !_controller!.value.isInitialized) return;
 
     try {
-      await _controller!.takePicture();
+      final XFile file = await _controller!.takePicture();
       if (!mounted) return;
       
-      // In a full implementation, you would wrap the CameraPreview and the Text 
-      // in a RepaintBoundary, call context.findRenderObject() as RenderRepaintBoundary, 
-      // convert it to an image, and upload that combined image to Firebase Storage.
-      // For now, we simulate the logic.
-      
       final note = _noteController.text.trim();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(note.isEmpty ? 'Glimpse sent!' : 'Glimpse sent with note: $note')),
-      );
       
-      setState(() {
-        _isWritingNote = false;
-        _noteController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uploading Glimpse...')),
+      );
+
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final storageRef = FirebaseStorage.instance.ref().child('glimpses').child(uid).child('$timestamp.jpg');
+      
+      await storageRef.putFile(File(file.path));
+      final downloadUrl = await storageRef.getDownloadURL();
+      
+      await FirebaseFirestore.instance.collection('glimpses').add({
+        'senderId': uid,
+        'imageUrl': downloadUrl,
+        'note': note,
+        'timestamp': FieldValue.serverTimestamp(),
       });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Glimpse sent!')),
+        );
+        setState(() {
+          _isWritingNote = false;
+          _noteController.clear();
+        });
+      }
     } catch (e) {
       debugPrint("Error taking picture: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: ${e.toString().split('] ').last}')),
+        );
+      }
     }
   }
 
@@ -129,7 +153,6 @@ class _CameraScreenState extends State<CameraScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background Gradient (Liquid Glass aesthetic foundation)
           Container(
             decoration: const BoxDecoration(
               gradient: RadialGradient(
@@ -138,8 +161,6 @@ class _CameraScreenState extends State<CameraScreen> {
               ),
             ),
           ),
-          
-          // Camera Preview
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.only(top: 64.0, bottom: 120.0, left: 16, right: 16),
@@ -149,8 +170,6 @@ class _CameraScreenState extends State<CameraScreen> {
                   fit: StackFit.expand,
                   children: [
                     CameraPreview(_controller!),
-                    
-                    // Ghost Note Overlay
                     if (_isWritingNote || _noteController.text.isNotEmpty)
                       Center(
                         child: LiquidGlass(
@@ -183,8 +202,6 @@ class _CameraScreenState extends State<CameraScreen> {
               ),
             ),
           ),
-          
-          // Top Navigation
           Positioned(
             top: 60,
             left: 24,
@@ -217,8 +234,6 @@ class _CameraScreenState extends State<CameraScreen> {
               ],
             ),
           ),
-          
-          // Bottom Controls
           Positioned(
             bottom: 40,
             left: 0,
@@ -226,7 +241,6 @@ class _CameraScreenState extends State<CameraScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Note Button
                 IconButton(
                   icon: Icon(Icons.text_fields, size: 32, color: _isWritingNote ? Colors.amber : Colors.white),
                   onPressed: () {
@@ -235,8 +249,6 @@ class _CameraScreenState extends State<CameraScreen> {
                     });
                   },
                 ),
-                
-                // Shutter Button (Liquid Glass style)
                 GestureDetector(
                   onTap: _takePicture,
                   child: LiquidGlass(
@@ -259,8 +271,6 @@ class _CameraScreenState extends State<CameraScreen> {
                     ),
                   ),
                 ),
-                
-                // Flip Camera Button
                 IconButton(
                   icon: const Icon(Icons.flip_camera_ios, size: 32),
                   color: Colors.white,

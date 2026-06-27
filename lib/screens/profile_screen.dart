@@ -57,12 +57,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () async {
-      final available = await DatabaseService.isUsernameAvailable(text);
-      if (mounted) {
-        setState(() {
-          _isAvailable = available;
-          _isChecking = false;
-        });
+      try {
+        final available = await DatabaseService.isUsernameAvailable(text);
+        if (mounted) {
+          setState(() {
+            _isAvailable = available;
+            _isChecking = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isAvailable = false;
+            _isChecking = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error checking username: ${e.toString().split('] ').last}')),
+          );
+        }
       }
     });
   }
@@ -179,6 +191,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black))
                               : const Text('Continue', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pushReplacementNamed('/camera');
+                        },
+                        child: const Text('Skip for now', style: TextStyle(color: Colors.white54)),
                       ),
                     ],
                   ),

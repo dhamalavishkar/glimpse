@@ -1,5 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_model.dart';
+import '../services/database_service.dart';
 import '../theme/liquid_glass.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -11,6 +14,7 @@ class FeedScreen extends StatefulWidget {
 
 class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
   final List<_EmojiParticle> _particles = [];
+  final Map<String, UserModel> _userCache = {};
 
   void _triggerReaction(String emoji, Offset position) {
     final random = Random();
@@ -45,6 +49,15 @@ class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
     }
   }
 
+  Future<UserModel?> _getUser(String uid) async {
+    if (_userCache.containsKey(uid)) return _userCache[uid];
+    final user = await DatabaseService.getUser(uid);
+    if (user != null) {
+      _userCache[uid] = user;
+    }
+    return user;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,61 +76,114 @@ class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
         ),
         child: Stack(
           children: [
-            ListView.builder(
-              padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 32),
-              itemCount: 5, // Mock data
-              itemBuilder: (context, index) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 24),
-                  child: LiquidGlass(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 400,
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            color: Colors.black26,
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.image, size: 64, color: Colors.white24),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: Colors.amber,
-                                    child: Icon(Icons.person, size: 16, color: Colors.black),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('glimpses')
+                  .orderBy('timestamp', descending: true)
+                  .limit(50)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: Colors.amber));
+                }
+                
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("No glimpses yet. Be the first to share!", style: TextStyle(color: Colors.white54)));
+                }
+
+                final glimpses = snapshot.data!.docs;
+
+                return ListView.builder(
+                  padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 32),
+                  itemCount: glimpses.length,
+                  itemBuilder: (context, index) {
+                    final data = glimpses[index].data() as Map<String, dynamic>;
+                    final senderId = data['senderId'] as String;
+                    final imageUrl = data['imageUrl'] as String;
+                    final note = data['note'] as String?;
+
+                    return FutureBuilder<UserModel?>(
+                      future: _getUser(senderId),
+                      builder: (context, userSnap) {
+                        final user = userSnap.data;
+                        final username = user?.username ?? user?.email ?? 'Unknown Friend';
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          child: LiquidGlass(
+                            padding: EdgeInsets.zero,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Stack(
+                                  children: [
+                                    Container(
+                                      height: 400,
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: Colors.black26,
+                                        image: DecorationImage(
+                                          image: NetworkImage(imageUrl),
+                                          fit: BoxFit.cover,
+                                        )
+                                      ),
+                                    ),
+                                    if (note != null && note.isNotEmpty)
+                                      Positioned.fill(
+                                        child: Center(
+                                          child: Text(
+                                            note, 
+                                            style: const TextStyle(
+                                              fontSize: 28, 
+                                              fontWeight: FontWeight.bold, 
+                                              color: Colors.white,
+                                              shadows: [Shadow(color: Colors.black, blurRadius: 10)]
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 16,
+                                            backgroundColor: Colors.amber,
+                                            backgroundImage: user?.profilePicUrl != null ? NetworkImage(user!.profilePicUrl!) : null,
+                                            child: user?.profilePicUrl == null ? const Icon(Icons.person, size: 16, color: Colors.black) : null,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            username,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          _buildReactionEmoji('❤️'),
+                                          const SizedBox(width: 8),
+                                          _buildReactionEmoji('😂'),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Friend ${index + 1}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  _buildReactionEmoji('❤️'),
-                                  const SizedBox(width: 8),
-                                  _buildReactionEmoji('😂'),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
+                        );
+                      },
+                    );
+                  },
                 );
-              },
+              }
             ),
             
             // Particles overlay

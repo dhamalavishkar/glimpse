@@ -25,6 +25,7 @@ class MessagingService {
     final String? senderId = message.data['sender_id'];
     final String? senderName = message.data['sender_name'];
     final int streakCount = int.tryParse(message.data['streak_count']?.toString() ?? '0') ?? 0;
+    final String? note = message.data['note'];
     
     if (imageUrl != null && senderName != null && senderId != null) {
       final currentUid = FirebaseAuth.instance.currentUser?.uid;
@@ -38,6 +39,7 @@ class MessagingService {
             imagePath: imageUrl,
             senderName: senderName,
             streak: streakCount,
+            note: note,
           );
         } else {
           // Silently drops widget update, relies on Firestore to update feed UI

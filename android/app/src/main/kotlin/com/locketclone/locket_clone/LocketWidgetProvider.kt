@@ -46,6 +46,14 @@ class LocketWidgetProvider : HomeWidgetProvider() {
                     setViewVisibility(R.id.widget_title, View.VISIBLE)
                 }
 
+                val note = widgetData.getString("widget_note", null)
+                if (!note.isNullOrEmpty()) {
+                    setTextViewText(R.id.widget_note, note)
+                    setViewVisibility(R.id.widget_note, View.VISIBLE)
+                } else {
+                    setViewVisibility(R.id.widget_note, View.GONE)
+                }
+
                 // Add tap-to-open functionality
                 val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                 if (intent != null) {

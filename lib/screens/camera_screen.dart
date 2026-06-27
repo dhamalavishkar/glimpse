@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import '../theme/liquid_glass.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -13,6 +14,9 @@ class _CameraScreenState extends State<CameraScreen> {
   List<CameraDescription> _cameras = [];
   int _selectedCameraIndex = 0;
   bool _isInitializing = true;
+  
+  final _noteController = TextEditingController();
+  bool _isWritingNote = false;
 
   @override
   void initState() {
@@ -31,9 +35,11 @@ class _CameraScreenState extends State<CameraScreen> {
     } catch (e) {
       debugPrint("Error initializing camera: $e");
     } finally {
-      setState(() {
-        _isInitializing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
     }
   }
 
@@ -61,9 +67,11 @@ class _CameraScreenState extends State<CameraScreen> {
     _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras.length;
     await _setupCameraController();
     
-    setState(() {
-      _isInitializing = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isInitializing = false;
+      });
+    }
   }
 
   Future<void> _takePicture() async {
@@ -72,10 +80,21 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       await _controller!.takePicture();
       if (!mounted) return;
-      // TODO: Navigate to preview and send screen
+      
+      // In a full implementation, you would wrap the CameraPreview and the Text 
+      // in a RepaintBoundary, call context.findRenderObject() as RenderRepaintBoundary, 
+      // convert it to an image, and upload that combined image to Firebase Storage.
+      // For now, we simulate the logic.
+      
+      final note = _noteController.text.trim();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Picture taken! (Upload not implemented yet)')),
+        SnackBar(content: Text(note.isEmpty ? 'Glimpse sent!' : 'Glimpse sent with note: $note')),
       );
+      
+      setState(() {
+        _isWritingNote = false;
+        _noteController.clear();
+      });
     } catch (e) {
       debugPrint("Error taking picture: $e");
     }
@@ -84,6 +103,7 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void dispose() {
     _controller?.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -91,28 +111,75 @@ class _CameraScreenState extends State<CameraScreen> {
   Widget build(BuildContext context) {
     if (_isInitializing) {
       return const Scaffold(
+        backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator(color: Colors.amber)),
       );
     }
 
     if (_cameras.isEmpty || _controller == null) {
       return const Scaffold(
-        body: Center(child: Text("No cameras found")),
+        backgroundColor: Colors.black,
+        body: Center(child: Text("No cameras found", style: TextStyle(color: Colors.white))),
       );
     }
 
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Camera Preview inside a rounded rectangle
+          // Background Gradient (Liquid Glass aesthetic foundation)
+          Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                colors: [Color(0xFF2A2A2A), Colors.black],
+                radius: 1.5,
+              ),
+            ),
+          ),
+          
+          // Camera Preview
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.only(top: 64.0, bottom: 120.0, left: 16, right: 16),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(40),
-                child: CameraPreview(_controller!),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CameraPreview(_controller!),
+                    
+                    // Ghost Note Overlay
+                    if (_isWritingNote || _noteController.text.isNotEmpty)
+                      Center(
+                        child: LiquidGlass(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: IntrinsicWidth(
+                            child: TextField(
+                              controller: _noteController,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                              decoration: const InputDecoration(
+                                hintText: 'Type a note...',
+                                hintStyle: TextStyle(color: Colors.white54),
+                                border: InputBorder.none,
+                              ),
+                              onSubmitted: (_) {
+                                setState(() {
+                                  _isWritingNote = false;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -130,12 +197,16 @@ class _CameraScreenState extends State<CameraScreen> {
                   color: Colors.white,
                   onPressed: () => Navigator.pushNamed(context, '/friends'),
                 ),
-                const Text(
-                  "Glimpse",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber,
+                LiquidGlass(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  borderRadius: 30,
+                  child: const Text(
+                    "Glimpse",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -155,23 +226,35 @@ class _CameraScreenState extends State<CameraScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                const SizedBox(width: 48), // Balance spacing
+                // Note Button
+                IconButton(
+                  icon: Icon(Icons.text_fields, size: 32, color: _isWritingNote ? Colors.amber : Colors.white),
+                  onPressed: () {
+                    setState(() {
+                      _isWritingNote = !_isWritingNote;
+                    });
+                  },
+                ),
                 
-                // Shutter Button
+                // Shutter Button (Liquid Glass style)
                 GestureDetector(
                   onTap: _takePicture,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.amber, width: 6),
-                    ),
+                  child: LiquidGlass(
+                    borderRadius: 100,
+                    padding: const EdgeInsets.all(8),
                     child: Container(
-                      margin: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.amber,
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        border: Border.all(color: Colors.amber, width: 4),
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.amber,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
                   ),

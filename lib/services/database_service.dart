@@ -79,4 +79,32 @@ class DatabaseService {
       }
     });
   }
+
+  static Future<void> incrementStreak(String friendshipId) async {
+    final docRef = _db.collection('friendships').doc(friendshipId);
+    
+    await _db.runTransaction((transaction) async {
+      final doc = await transaction.get(docRef);
+      if (!doc.exists) return;
+      
+      final data = doc.data()!;
+      Timestamp lastInteraction = data['lastInteractionDate'] ?? Timestamp.now();
+      int streak = data['streakCount'] ?? 0;
+      
+      final now = DateTime.now();
+      final lastDate = lastInteraction.toDate();
+      final difference = now.difference(lastDate).inHours;
+      
+      if (difference > 48) {
+        streak = 1;
+      } else if (now.day != lastDate.day) {
+        streak += 1;
+      }
+      
+      transaction.update(docRef, {
+        'streakCount': streak,
+        'lastInteractionDate': Timestamp.now(),
+      });
+    });
+  }
 }

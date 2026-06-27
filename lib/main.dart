@@ -7,6 +7,10 @@ import 'screens/auth_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/feed_screen.dart';
 import 'screens/friends_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/search_screen.dart';
+import 'services/database_service.dart';
+import 'models/user_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +52,7 @@ class LocketCloneApp extends StatelessWidget {
         '/camera': (context) => const CameraScreen(),
         '/feed': (context) => const FeedScreen(),
         '/friends': (context) => const FriendsScreen(),
+        '/search': (context) => const SearchScreen(),
       },
     );
   }
@@ -68,7 +73,20 @@ class AuthStateWrapper extends StatelessWidget {
         }
         
         if (snapshot.hasData && snapshot.data != null) {
-          return const CameraScreen();
+          return FutureBuilder<UserModel?>(
+            future: DatabaseService.getUser(snapshot.data!.uid),
+            builder: (context, userSnapshot) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.amber)));
+              }
+              
+              if (userSnapshot.hasData && userSnapshot.data?.username != null) {
+                return const CameraScreen();
+              }
+              
+              return const ProfileScreen();
+            },
+          );
         }
         
         return const AuthScreen();

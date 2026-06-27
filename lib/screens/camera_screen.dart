@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 
@@ -71,7 +70,8 @@ class _CameraScreenState extends State<CameraScreen> {
     if (_controller == null || !_controller!.value.isInitialized) return;
 
     try {
-      final XFile file = await _controller!.takePicture();
+      await _controller!.takePicture();
+      if (!mounted) return;
       // TODO: Navigate to preview and send screen
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Picture taken! (Upload not implemented yet)')),

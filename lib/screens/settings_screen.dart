@@ -28,12 +28,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadUser() async {
-    final user = await DatabaseService.getUser(_uid);
-    if (mounted) {
-      setState(() {
-        _user = user;
-        _isLoading = false;
-      });
+    try {
+      final user = await DatabaseService.getUser(_uid);
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Database not initialized yet.')),
+        );
+      }
     }
   }
 

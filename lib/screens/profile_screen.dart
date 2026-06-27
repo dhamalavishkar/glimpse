@@ -113,11 +113,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (e) {
         if (mounted) {
           setState(() {
-            _isAvailable = false;
+            _isAvailable = null;
             _isChecking = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error checking username: ${e.toString().split('] ').last}')),
+            SnackBar(content: Text('Database connecting, please try again in a moment.')),
           );
         }
       }

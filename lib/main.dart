@@ -9,6 +9,7 @@ import 'screens/feed_screen.dart';
 import 'screens/friends_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/search_screen.dart';
+import 'screens/settings_screen.dart';
 import 'services/database_service.dart';
 import 'models/user_model.dart';
 
@@ -53,6 +54,7 @@ class LocketCloneApp extends StatelessWidget {
         '/feed': (context) => const FeedScreen(),
         '/friends': (context) => const FriendsScreen(),
         '/search': (context) => const SearchScreen(),
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }

@@ -209,10 +209,19 @@ class _CameraScreenState extends State<CameraScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.people, size: 32),
-                  color: Colors.white,
-                  onPressed: () => Navigator.pushNamed(context, '/friends'),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.person, size: 32),
+                      color: Colors.white,
+                      onPressed: () => Navigator.pushNamed(context, '/settings'),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.people, size: 32),
+                      color: Colors.white,
+                      onPressed: () => Navigator.pushNamed(context, '/friends'),
+                    ),
+                  ],
                 ),
                 LiquidGlass(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),

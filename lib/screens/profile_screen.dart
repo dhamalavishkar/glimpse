@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart';
 import '../theme/liquid_glass.dart';
 
@@ -17,6 +21,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isChecking = false;
   bool? _isAvailable;
   bool _isSaving = false;
+  bool _isUploadingPfp = false;
+  String? _pfpUrl;
 
   @override
   void initState() {
@@ -29,6 +35,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _debounce?.cancel();
     _usernameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    
+    if (pickedFile == null) return;
+
+    setState(() {
+      _isUploadingPfp = true;
+    });
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final storageRef = FirebaseStorage.instance.ref().child('users').child(uid).child('pfp.jpg');
+      await storageRef.putFile(File(pickedFile.path));
+      final downloadUrl = await storageRef.getDownloadURL();
+      
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'profilePicUrl': downloadUrl,
+      });
+
+      if (mounted) {
+        setState(() {
+          _pfpUrl = downloadUrl;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture updated!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: ${e.toString().split('] ').last}')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingPfp = false;
+        });
+      }
+    }
   }
 
   void _onUsernameChanged() {
@@ -128,17 +173,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 48),
                 
-                // PFP Upload Placeholder
+                // PFP Upload
                 GestureDetector(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Image upload stub')),
-                    );
-                  },
+                  onTap: _isUploadingPfp ? null : _pickAndUploadImage,
                   child: LiquidGlass(
                     borderRadius: 100,
-                    padding: const EdgeInsets.all(32),
-                    child: const Icon(Icons.add_a_photo, size: 64, color: Colors.amber),
+                    padding: const EdgeInsets.all(8),
+                    child: CircleAvatar(
+                      radius: 64,
+                      backgroundColor: Colors.black26,
+                      backgroundImage: _pfpUrl != null ? NetworkImage(_pfpUrl!) : null,
+                      child: _isUploadingPfp
+                          ? const CircularProgressIndicator(color: Colors.amber)
+                          : (_pfpUrl == null
+                              ? const Icon(Icons.add_a_photo, size: 40, color: Colors.amber)
+                              : null),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 48),

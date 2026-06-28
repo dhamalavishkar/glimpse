@@ -32,29 +32,31 @@ class DatabaseService {
     return !doc.exists;
   }
 
-  static Future<bool> claimUsername(String uid, String username) async {
+  static Future<String?> claimUsername(String uid, String username, {String? oldUsername}) async {
     final cleanUsername = username.toLowerCase().trim();
     
-    DocumentReference usernameRef = _db.collection('usernames').doc(cleanUsername);
+    DocumentReference newUsernameRef = _db.collection('usernames').doc(cleanUsername);
     DocumentReference userRef = _db.collection('users').doc(uid);
+    DocumentReference? oldUsernameRef = oldUsername != null ? _db.collection('usernames').doc(oldUsername.toLowerCase().trim()) : null;
 
     try {
-      // Transaction would be safer in highly concurrent environments, 
-      // but batch is usually sufficient for simple user flows.
-      // Let's use a transaction to be completely safe against race conditions.
-      bool success = await _db.runTransaction((transaction) async {
-        final usernameDoc = await transaction.get(usernameRef);
-        if (usernameDoc.exists) {
-          return false; // Taken
+      await _db.runTransaction((transaction) async {
+        final usernameDoc = await transaction.get(newUsernameRef);
+        if (usernameDoc.exists && usernameDoc.id != oldUsername?.toLowerCase().trim()) {
+          throw Exception('USERNAME_TAKEN');
         }
 
-        transaction.set(usernameRef, {'uid': uid});
-        transaction.update(userRef, {'username': cleanUsername});
-        return true;
+        if (oldUsernameRef != null && oldUsernameRef.id != newUsernameRef.id) {
+          transaction.delete(oldUsernameRef);
+        }
+
+        transaction.set(newUsernameRef, {'uid': uid});
+        transaction.set(userRef, {'username': cleanUsername}, SetOptions(merge: true));
       });
-      return success;
+      return null;
     } catch (e) {
-      return false;
+      if (e.toString().contains('USERNAME_TAKEN')) return 'USERNAME_TAKEN';
+      return e.toString();
     }
   }
 

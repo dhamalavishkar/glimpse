@@ -136,18 +136,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final username = _usernameController.text.trim();
 
-    final success = await DatabaseService.claimUsername(uid, username);
+    final result = await DatabaseService.claimUsername(uid, username);
 
     if (mounted) {
       setState(() {
         _isSaving = false;
       });
-      if (success) {
+      if (result == null) {
         // Pop or navigate to main screen if managed by AuthWrapper
         Navigator.of(context).pushReplacementNamed('/camera');
-      } else {
+      } else if (result == 'USERNAME_TAKEN') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Username was just taken! Try another.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error claiming username: $result')),
         );
       }
     }

@@ -84,6 +84,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _editUsername() async {
+    final controller = TextEditingController(text: _user?.username);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text('Edit Username', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(hintText: 'New username', hintStyle: TextStyle(color: Colors.white54)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Save', style: TextStyle(color: Colors.amber))),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result != null && result.isNotEmpty && result != _user?.username) {
+      if (!RegExp(r'^[a-z0-9_]+$').hasMatch(result)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid format. Lowercase, numbers, underscores only.')));
+        return;
+      }
+      
+      setState(() => _isLoading = true);
+      final error = await DatabaseService.claimUsername(_uid, result, oldUsername: _user?.username);
+      if (error == null) {
+        await _loadUser();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Username updated!')));
+      } else if (error == 'USERNAME_TAKEN') {
+        setState(() => _isLoading = false);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Username is already taken!')));
+      } else {
+        setState(() => _isLoading = false);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $error')));
+      }
+    }
+  }
+
   void _signOut() async {
     await FirebaseAuth.instance.signOut();
     if (mounted) {
@@ -140,6 +182,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             leading: const Icon(Icons.person, color: Colors.amber),
                             title: const Text('Username', style: TextStyle(color: Colors.white54)),
                             subtitle: Text(_user?.username ?? 'Not set', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.white54),
+                              onPressed: _editUsername,
+                            ),
                           ),
                           const Divider(color: Colors.white24),
                           ListTile(

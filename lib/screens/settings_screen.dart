@@ -191,7 +191,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ListTile(
                             leading: const Icon(Icons.email, color: Colors.amber),
                             title: const Text('Email', style: TextStyle(color: Colors.white54)),
-                            subtitle: Text(_user?.email ?? FirebaseAuth.instance.currentUser?.email ?? 'Unknown', style: const TextStyle(color: Colors.white, fontSize: 18)),
+                            subtitle: Text(
+                              (_user?.email != null && _user!.email.isNotEmpty)
+                                  ? _user!.email
+                                  : (FirebaseAuth.instance.currentUser?.email ?? 'Unknown'),
+                              style: const TextStyle(color: Colors.white, fontSize: 18),
+                            ),
                           ),
                         ],
                       ),

@@ -20,6 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Timer? _debounce;
   bool _isChecking = false;
   bool? _isAvailable;
+  bool _isInvalidFormat = false;
   bool _isSaving = false;
   bool _isUploadingPfp = false;
   String? _pfpUrl;
@@ -81,15 +82,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (text.isEmpty) {
       setState(() {
         _isAvailable = null;
+        _isInvalidFormat = false;
         _isChecking = false;
       });
       return;
     }
 
-    // Must be lowercase alphanumeric
-    if (!RegExp(r'^[a-z0-9]+$').hasMatch(text)) {
+    if (!RegExp(r'^[a-z0-9_]+$').hasMatch(text)) {
       setState(() {
-        _isAvailable = false;
+        _isAvailable = null;
+        _isInvalidFormat = true;
         _isChecking = false;
       });
       return;
@@ -97,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() {
       _isChecking = true;
-      _isAvailable = null;
+      _isInvalidFormat = false;
     });
 
     if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -223,11 +225,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       : null,
                         ),
                       ),
+                      if (_isChecking)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(color: Colors.amber, strokeWidth: 2),
+                            ),
+                          ),
+                        if (_isInvalidFormat && _usernameController.text.isNotEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Text('Only lowercase letters, numbers, and underscores allowed', style: TextStyle(color: Colors.red)),
+                          ),
+                        if (!_isChecking && _isAvailable == false && !_isInvalidFormat && _usernameController.text.isNotEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Text('Username is taken', style: TextStyle(color: Colors.red)),
+                          ),
+                        if (!_isChecking && _isAvailable == true && !_isInvalidFormat && _usernameController.text.isNotEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Text('Username available!', style: TextStyle(color: Colors.green)),
+                          ),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: (_isAvailable == true && !_isSaving) ? _saveProfile : null,
+                          onPressed: (_isAvailable == true && !_isInvalidFormat && !_isSaving) ? _saveProfile : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.amber,
                             disabledBackgroundColor: Colors.amber.withValues(alpha: 0.3),

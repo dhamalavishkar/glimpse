@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart';
 import '../theme/liquid_glass.dart';
 
@@ -52,21 +50,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final file = File(pickedFile.path);
       if (!file.existsSync()) throw Exception("Selected file does not exist.");
 
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final storageRef = FirebaseStorage.instance.ref().child('users').child(uid).child('pfp.jpg');
+      final uid = Supabase.instance.client.auth.currentUser!.id;
+      final path = '$uid/pfp_${DateTime.now().millisecondsSinceEpoch}.jpg';
       
-      final uploadTask = storageRef.putFile(file);
-      final snapshot = await uploadTask;
+      await Supabase.instance.client.storage.from('avatars').upload(path, file);
       
-      if (snapshot.state != TaskState.success) {
-        throw Exception('Upload failed. Check Firebase Storage rules.');
-      }
+      final downloadUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(path);
       
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'profilePicUrl': downloadUrl,
-      });
+      await Supabase.instance.client.from('users').update({
+        'profile_pic_url': downloadUrl,
+      }).eq('id', uid);
 
       if (mounted) {
         setState(() {
@@ -77,9 +70,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (mounted) {
         String errMsg = e.toString();
-        if (errMsg.contains('object-not-found') || errMsg.contains('Object does not exist')) {
-          errMsg = 'Firebase Storage is not enabled! Please click "Storage" in Firebase console and click "Get Started".';
-        } else if (errMsg.contains('unauthorized')) {
+        if (errMsg.contains('Bucket not found') || errMsg.contains('bucket')) {
+          errMsg = 'Supabase Storage bucket "avatars" is not created! Please create it in your Supabase dashboard and make it public.';
           errMsg = 'Permission denied. Make sure Storage Rules are in Test Mode.';
         } else {
           errMsg = 'Upload failed: ${errMsg.split('] ').last}';
@@ -153,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isSaving = true;
     });
 
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = Supabase.instance.client.auth.currentUser!.id;
     final username = _usernameController.text.trim();
 
     final result = await DatabaseService.claimUsername(uid, username);

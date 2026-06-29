@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'screens/auth_screen.dart';
@@ -17,9 +16,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    await Firebase.initializeApp();
+    await Supabase.initialize(
+      url: 'YOUR_SUPABASE_URL',
+      anonKey: 'YOUR_SUPABASE_ANON_KEY',
+    );
   } catch (e) {
-    debugPrint("Firebase init failed (likely missing google-services.json). Error: $e");
+    debugPrint("Supabase init failed. Error: $e");
   }
   
   runApp(const LocketCloneApp());
@@ -65,8 +67,8 @@ class AuthStateWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -74,9 +76,10 @@ class AuthStateWrapper extends StatelessWidget {
           );
         }
         
-        if (snapshot.hasData && snapshot.data != null) {
+        final session = snapshot.data?.session;
+        if (session != null && session.user != null) {
           return FutureBuilder<UserModel?>(
-            future: DatabaseService.getUser(snapshot.data!.uid),
+            future: DatabaseService.getUser(session.user.id),
             builder: (context, userSnapshot) {
               if (userSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.amber)));

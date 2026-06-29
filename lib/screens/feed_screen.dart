@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../services/database_service.dart';
 import '../theme/liquid_glass.dart';
@@ -76,30 +76,32 @@ class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
         ),
         child: Stack(
           children: [
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('glimpses')
-                  .orderBy('timestamp', descending: true)
-                  .limit(50)
-                  .snapshots(),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: Stream.periodic(const Duration(seconds: 3)).asyncMap((_) async {
+                return await Supabase.instance.client
+                    .from('glimpses')
+                    .select()
+                    .order('created_at', ascending: false)
+                    .limit(50);
+              }),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator(color: Colors.amber));
                 }
                 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Center(child: Text("No glimpses yet. Be the first to share!", style: TextStyle(color: Colors.white54)));
                 }
 
-                final glimpses = snapshot.data!.docs;
+                final glimpses = snapshot.data!;
 
                 return ListView.builder(
                   padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 32),
                   itemCount: glimpses.length,
                   itemBuilder: (context, index) {
-                    final data = glimpses[index].data() as Map<String, dynamic>;
-                    final senderId = data['senderId'] as String;
-                    final imageUrl = data['imageUrl'] as String;
+                    final data = glimpses[index];
+                    final senderId = data['sender_id'] as String;
+                    final imageUrl = data['image_url'] as String;
                     final note = data['note'] as String?;
 
                     return FutureBuilder<UserModel?>(

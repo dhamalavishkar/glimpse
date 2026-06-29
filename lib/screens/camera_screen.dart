@@ -1,9 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/liquid_glass.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -92,28 +90,22 @@ class _CameraScreenState extends State<CameraScreen> {
         const SnackBar(content: Text('Uploading Glimpse...')),
       );
 
-      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final uid = Supabase.instance.client.auth.currentUser!.id;
 
       try {
         final file = File(imagePath);
         if (!file.existsSync()) throw Exception("Camera file not found.");
 
-        final storageRef = FirebaseStorage.instance.ref().child('glimpses').child(uid).child('${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final path = '$uid/glimpse_${DateTime.now().millisecondsSinceEpoch}.jpg';
         
-        final uploadTask = storageRef.putFile(file);
-        final snapshot = await uploadTask;
+        await Supabase.instance.client.storage.from('glimpses').upload(path, file);
         
-        if (snapshot.state != TaskState.success) {
-          throw Exception('Upload failed. Check Firebase Storage rules.');
-        }
+        final downloadUrl = Supabase.instance.client.storage.from('glimpses').getPublicUrl(path);
 
-        final downloadUrl = await snapshot.ref.getDownloadURL();
-
-        await FirebaseFirestore.instance.collection('glimpses').add({
-          'senderId': uid,
-          'imageUrl': downloadUrl,
+        await Supabase.instance.client.from('glimpses').insert({
+          'sender_id': uid,
+          'image_url': downloadUrl,
           'note': note,
-          'timestamp': FieldValue.serverTimestamp(),
         });
 
         if (mounted) {
@@ -126,9 +118,8 @@ class _CameraScreenState extends State<CameraScreen> {
       } catch (e) {
         if (mounted) {
           String errMsg = e.toString();
-          if (errMsg.contains('object-not-found') || errMsg.contains('Object does not exist')) {
-            errMsg = 'Firebase Storage is not enabled! Please click "Storage" in Firebase console and click "Get Started".';
-          } else if (errMsg.contains('unauthorized')) {
+          if (errMsg.contains('Bucket not found') || errMsg.contains('bucket')) {
+            errMsg = 'Supabase Storage bucket "glimpses" is not created! Please create it in your Supabase dashboard and make it public.';
             errMsg = 'Permission denied. Make sure Storage Rules are in Test Mode.';
           } else {
             errMsg = 'Failed to send Glimpse: ${errMsg.split('] ').last}';

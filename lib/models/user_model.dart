@@ -1,7 +1,7 @@
 class UserModel {
   final String uid;
   final String email;
-  final String? username; // Strictly lowercase alphanumeric
+  final String? username;
   final String? profilePicUrl;
   final String? pinnedFriendId;
 
@@ -13,22 +13,23 @@ class UserModel {
     this.pinnedFriendId,
   });
 
-  factory UserModel.fromMap(Map<String, dynamic> data, String uid) {
+  factory UserModel.fromMap(Map<String, dynamic> data) {
     return UserModel(
-      uid: uid,
+      uid: data['id'] ?? '',
       email: data['email'] ?? '',
       username: data['username'],
-      profilePicUrl: data['profilePicUrl'],
-      pinnedFriendId: data['pinnedFriendId'],
+      profilePicUrl: data['profile_pic_url'] ?? data['profilePicUrl'],
+      pinnedFriendId: data['pinned_friend_id'] ?? data['pinnedFriendId'],
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
+      'id': uid,
       'email': email,
       'username': username,
-      'profilePicUrl': profilePicUrl,
-      'pinnedFriendId': pinnedFriendId,
+      'profile_pic_url': profilePicUrl,
+      'pinned_friend_id': pinnedFriendId,
     };
   }
 }

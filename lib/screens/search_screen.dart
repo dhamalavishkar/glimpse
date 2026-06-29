@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../services/database_service.dart';
 import '../theme/liquid_glass.dart';
@@ -31,21 +30,24 @@ class _SearchScreenState extends State<SearchScreen> {
       _isSearching = true;
     });
 
-    final currentUid = FirebaseAuth.instance.currentUser!.uid;
+    final currentUid = Supabase.instance.client.auth.currentUser!.id;
 
     try {
-      // Partial prefix match using \uf8ff trick
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('username', isGreaterThanOrEqualTo: text)
-          .where('username', isLessThanOrEqualTo: '$text\uf8ff')
-          .limit(10)
-          .get();
+      final response = await Supabase.instance.client
+          .from('users')
+          .select()
+          .ilike('username', '$text%')
+          .limit(10);
 
       final List<UserModel> found = [];
-      for (var doc in snapshot.docs) {
-        if (doc.id != currentUid) {
-          found.add(UserModel.fromMap(doc.data(), doc.id));
+      for (var row in response) {
+        if (row['id'] != currentUid) {
+          found.add(UserModel(
+            uid: row['id'],
+            email: row['email'],
+            username: row['username'],
+            profilePicUrl: row['profile_pic_url'],
+          ));
         }
       }
 
@@ -65,11 +67,11 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _addFriend(UserModel user) async {
-    final currentUid = FirebaseAuth.instance.currentUser!.uid;
-    await DatabaseService.createOrUpdateFriendship(currentUid, user.uid);
+    final currentUid = Supabase.instance.client.auth.currentUser!.id;
+    await DatabaseService.sendFriendRequest(currentUid, user.uid);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added ${user.username ?? user.email} as a friend!')),
+        SnackBar(content: Text('Friend request sent to ${user.username ?? user.email}!')),
       );
     }
   }
@@ -144,7 +146,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 style: const TextStyle(color: Colors.white70),
                               ),
                               trailing: IconButton(
-                                icon: const Icon(Icons.person_add, color: Colors.amber),
+                                icon: const Icon(Icons.send, color: Colors.amber),
                                 onPressed: () => _addFriend(user),
                               ),
                             ),

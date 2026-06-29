@@ -86,41 +86,60 @@ class _CameraScreenState extends State<CameraScreen> {
       if (!mounted) return;
       
       final note = _noteController.text.trim();
+      final imagePath = file.path;
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Uploading Glimpse...')),
       );
 
       final uid = FirebaseAuth.instance.currentUser!.uid;
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final storageRef = FirebaseStorage.instance.ref().child('glimpses').child(uid).child('$timestamp.jpg');
-      
-      await storageRef.putFile(File(file.path));
-      final downloadUrl = await storageRef.getDownloadURL();
-      
-      await FirebaseFirestore.instance.collection('glimpses').add({
-        'senderId': uid,
-        'imageUrl': downloadUrl,
-        'note': note,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Glimpse sent!')),
-        );
-        setState(() {
-          _isWritingNote = false;
-          _noteController.clear();
+
+      try {
+        final file = File(imagePath);
+        if (!file.existsSync()) throw Exception("Camera file not found.");
+
+        final storageRef = FirebaseStorage.instance.ref().child('glimpses').child(uid).child('${DateTime.now().millisecondsSinceEpoch}.jpg');
+        
+        final uploadTask = storageRef.putFile(file);
+        final snapshot = await uploadTask;
+        
+        if (snapshot.state != TaskState.success) {
+          throw Exception('Upload failed. Check Firebase Storage rules.');
+        }
+
+        final downloadUrl = await snapshot.ref.getDownloadURL();
+
+        await FirebaseFirestore.instance.collection('glimpses').add({
+          'senderId': uid,
+          'imageUrl': downloadUrl,
+          'note': note,
+          'timestamp': FieldValue.serverTimestamp(),
         });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Glimpse sent!')));
+          setState(() {
+            _isWritingNote = false;
+            _noteController.clear();
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          String errMsg = e.toString();
+          if (errMsg.contains('object-not-found') || errMsg.contains('Object does not exist')) {
+            errMsg = 'Firebase Storage is not enabled! Please click "Storage" in Firebase console and click "Get Started".';
+          } else if (errMsg.contains('unauthorized')) {
+            errMsg = 'Permission denied. Make sure Storage Rules are in Test Mode.';
+          } else {
+            errMsg = 'Failed to send Glimpse: ${errMsg.split('] ').last}';
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errMsg), duration: const Duration(seconds: 5)),
+          );
+        }
       }
     } catch (e) {
       debugPrint("Error taking picture: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: ${e.toString().split('] ').last}')),
-        );
-      }
     }
   }
 

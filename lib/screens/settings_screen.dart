@@ -59,9 +59,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
+      final file = File(pickedFile.path);
+      if (!file.existsSync()) throw Exception("Selected file does not exist.");
+
       final storageRef = FirebaseStorage.instance.ref().child('users').child(_uid).child('pfp.jpg');
-      await storageRef.putFile(File(pickedFile.path));
-      final downloadUrl = await storageRef.getDownloadURL();
+      
+      final uploadTask = storageRef.putFile(file);
+      final snapshot = await uploadTask;
+      
+      if (snapshot.state != TaskState.success) {
+        throw Exception('Upload failed. Check Firebase Storage rules.');
+      }
+      
+      final downloadUrl = await snapshot.ref.getDownloadURL();
       
       await FirebaseFirestore.instance.collection('users').doc(_uid).update({
         'profilePicUrl': downloadUrl,
@@ -73,7 +83,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: ${e.toString().split('] ').last}')));
+        String errMsg = e.toString();
+        if (errMsg.contains('object-not-found') || errMsg.contains('Object does not exist')) {
+          errMsg = 'Firebase Storage is not enabled! Please click "Storage" in Firebase console and click "Get Started".';
+        } else if (errMsg.contains('unauthorized')) {
+          errMsg = 'Permission denied. Make sure Storage Rules are in Test Mode.';
+        } else {
+          errMsg = 'Upload failed: ${errMsg.split('] ').last}';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errMsg), duration: const Duration(seconds: 5)),
+        );
       }
     } finally {
       if (mounted) {

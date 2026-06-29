@@ -65,9 +65,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       
       final downloadUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(path);
       
-      await Supabase.instance.client.from('users').update({
-        'profile_pic_url': downloadUrl,
-      }).eq('id', _uid);
+      await DatabaseService.updateProfilePicUrl(_uid, downloadUrl);
 
       await _loadUser();
       if (mounted) {

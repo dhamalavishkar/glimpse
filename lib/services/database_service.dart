@@ -47,15 +47,41 @@ class DatabaseService {
   static Future<String?> claimUsername(String uid, String username, {String? oldUsername}) async {
     final cleanUsername = username.toLowerCase().trim();
     try {
-      await _db.from('users').update({
-        'username': cleanUsername,
-      }).eq('id', uid);
+      final existingUser = await getUser(uid);
+      if (existingUser != null) {
+        await _db.from('users').update({
+          'username': cleanUsername,
+        }).eq('id', uid);
+      } else {
+        final authUser = Supabase.instance.client.auth.currentUser;
+        await _db.from('users').insert({
+          'id': uid,
+          'email': authUser?.email ?? '',
+          'username': cleanUsername,
+        });
+      }
       return null;
     } catch (e) {
       if (e.toString().contains('duplicate key value violates unique constraint') || e.toString().contains('users_username_key')) {
         return 'USERNAME_TAKEN';
       }
       return e.toString();
+    }
+  }
+
+  static Future<void> updateProfilePicUrl(String uid, String url) async {
+    final existingUser = await getUser(uid);
+    if (existingUser != null) {
+      await _db.from('users').update({
+        'profile_pic_url': url,
+      }).eq('id', uid);
+    } else {
+      final authUser = Supabase.instance.client.auth.currentUser;
+      await _db.from('users').insert({
+        'id': uid,
+        'email': authUser?.email ?? '',
+        'profile_pic_url': url,
+      });
     }
   }
 

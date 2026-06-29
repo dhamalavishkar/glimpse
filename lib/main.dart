@@ -17,8 +17,8 @@ void main() async {
   
   try {
     await Supabase.initialize(
-      url: 'YOUR_SUPABASE_URL',
-      anonKey: 'YOUR_SUPABASE_ANON_KEY',
+      url: 'https://joiqwzzlushasopbypcg.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvaXF3enpsdXNoYXNvcGJ5cGNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjQ4NzcsImV4cCI6MjA5ODMwMDg3N30.JP5KFtVX1XU26AvkWYIH4_jVnWbJVpPqjWC0-Wl9KUk',
     );
   } catch (e) {
     debugPrint("Supabase init failed. Error: $e");

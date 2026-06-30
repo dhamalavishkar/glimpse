@@ -118,11 +118,10 @@ class _CameraScreenState extends State<CameraScreen> {
       } catch (e) {
         if (mounted) {
           String errMsg = e.toString();
-          if (errMsg.contains('Bucket not found') || errMsg.contains('bucket')) {
-            errMsg = 'Supabase Storage bucket "glimpses" is not created! Please create it in your Supabase dashboard and make it public.';
-            errMsg = 'Permission denied. Make sure Storage Rules are in Test Mode.';
+          if (errMsg.contains('Bucket not found')) {
+            errMsg = 'Bucket "glimpses" is missing! Please create it exactly as "glimpses" (lowercase).';
           } else {
-            errMsg = 'Failed to send Glimpse: ${errMsg.split('] ').last}';
+            errMsg = 'Error: $errMsg';
           }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(errMsg), duration: const Duration(seconds: 5)),
